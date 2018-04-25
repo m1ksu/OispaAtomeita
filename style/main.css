@@ -284,10 +284,10 @@ h1.title {
     animation-fill-mode: both; }
 
 .score-container:after {
-  content: "Atomimassa"; }
+  content: "Pisteet"; }
 
 .best-container:after {
-  content: "Painavin erä"; }
+  content: "Eniten pisteitä"; }
 
 p {
   margin-top: 0;
