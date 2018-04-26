@@ -1,283 +1,243 @@
-function GameManager(size, InputManager, Actuator, ScoreManager) {
-  this.size         = size; // Size of the grid
-  this.inputManager = new InputManager;
-  this.scoreManager = new ScoreManager;
-  this.actuator     = new Actuator;
+function HTMLActuator() {
+  this.tileContainer    = document.querySelector(".tile-container");
+  this.scoreContainer   = document.querySelector(".score-container");
+  this.bestContainer    = document.querySelector(".best-container");
+  this.messageContainer = document.querySelector(".game-message");
+  this.buttonsContainer = document.querySelector(".lower-container");
+  this.info             = document.querySelector(".info");
+  this.dogeSays = document.querySelector(".doge-says");
+  this.katkoViesti = document.querySelector(".katkoviesti");
+  this.katkoContainerColor = document.querySelector(".katko-container-color");
 
-  this.startTiles   = 2;
+  this.score = 0;
 
-  this.inputManager.on("move", this.move.bind(this));
-  this.inputManager.on("restart", this.restart.bind(this));
-  this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
-  this.inputManager.on("showInfo", this.showInfo.bind(this));
-  this.inputManager.on("hideInfo", this.hideInfo.bind(this));
-  this.inputManager.on("goKatko", this.goKatko.bind(this));
-
-  this.setup();
 }
 
-// Restart the game
-GameManager.prototype.restart = function () {
-  this.actuator.continue();
-  this.setup();
-};
+dogeSayings = []
 
-// Keep playing after winning
-GameManager.prototype.keepPlaying = function () {
-  this.keepPlaying = true;
-  this.actuator.continue();
-};
-
-GameManager.prototype.showInfo = function () {
-
-  this.actuator.showInfo();
-};
-
-
-GameManager.prototype.hideInfo = function () {
-  this.actuator.hideInfo();
-};
-
-GameManager.prototype.goKatko = function () {
-  if (this.score > 1000) {
-      this.score -= 1000;
-    this.grid.katkoReissu();
-        this.actuate();
-        this.actuator.goKatko();
-  }
-};
-
-GameManager.prototype.isGameTerminated = function () {
-  if (this.over || (this.won && !this.keepPlaying)) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
-// Set up the game
-GameManager.prototype.setup = function () {
-  this.grid        = new Grid(this.size);
-
-  this.score       = 0;
-  this.over        = false;
-  this.won         = false;
-  this.keepPlaying = false;
-
-    //preload
-    snd = [];
-    snd[0] = new Audio("/none1.mp3");
-    snd[1] = new Audio("/none2.mp3");
-    snd[2] = new Audio("/none3.mp3");
-
-  // Add the initial tiles
-  this.addStartTiles();
-  /*this.grid.insertTile(new Tile({x:0,y:0}, 1024));
-  this.grid.insertTile(new Tile({x:0,y:1}, 512));
-  this.grid.insertTile(new Tile({x:0,y:2}, 256));
-  this.grid.insertTile(new Tile({x:0,y:3}, 128));
-  this.grid.insertTile(new Tile({x:1,y:3}, 64));
-  this.grid.insertTile(new Tile({x:1,y:2}, 32));
-  this.grid.insertTile(new Tile({x:1,y:1}, 16));
-  this.grid.insertTile(new Tile({x:1,y:0}, 8));
-  this.grid.insertTile(new Tile({x:2,y:0}, 4));
-  this.grid.insertTile(new Tile({x:2,y:1}, 2));
-  this.grid.insertTile(new Tile({x:2,y:2}, 2));*/
-  // Update the actuator
-  this.actuate();
-};
-
-// Set up the initial tiles to start the game with
-GameManager.prototype.addStartTiles = function () {
-  for (var i = 0; i < this.startTiles; i++) {
-    this.addRandomTile();
-  }
-};
-
-// Adds a tile in a random position
-GameManager.prototype.addRandomTile = function () {
-  if (this.grid.cellsAvailable()) {
-    var value = Math.random() < 0.9 ? 2 : 4;
-    var tile = new Tile(this.grid.randomAvailableCell(), value);
-
-    this.grid.insertTile(tile);
-  }
-};
-
-// Sends the updated grid to the actuator
-GameManager.prototype.actuate = function () {
-  if (this.scoreManager.get() < this.score) {
-    this.scoreManager.set(this.score);
-  }
-
-  this.actuator.actuate(this.grid, {
-    score:      this.score,
-    over:       this.over,
-    won:        this.won,
-    bestScore:  this.scoreManager.get(),
-    terminated: this.isGameTerminated()
-  });
-
-};
-
-// Save all tile positions and remove merger info
-GameManager.prototype.prepareTiles = function () {
-  this.grid.eachCell(function (x, y, tile) {
-    if (tile) {
-      tile.mergedFrom = null;
-      tile.savePosition();
-    }
-  });
-};
-
-// Move a tile and its representation
-GameManager.prototype.moveTile = function (tile, cell) {
-  this.grid.cells[tile.x][tile.y] = null;
-  this.grid.cells[cell.x][cell.y] = tile;
-  tile.updatePosition(cell);
-};
-
-// Move tiles on the grid in the specified direction
-GameManager.prototype.move = function (direction) {
-  // 0: up, 1: right, 2:down, 3: left
+HTMLActuator.prototype.actuate = function (grid, metadata) {
   var self = this;
 
-  if (this.isGameTerminated()) return; // Don't do anything if the game's over
+  window.requestAnimationFrame(function () {
+    self.clearContainer(self.tileContainer);
 
-  var cell, tile;
-
-  var vector     = this.getVector(direction);
-  var traversals = this.buildTraversals(vector);
-  var moved      = false;
-
-  // Save the current tile positions and remove merger information
-  this.prepareTiles();
-
-  // Traverse the grid in the right direction and move tiles
-  traversals.x.forEach(function (x) {
-    traversals.y.forEach(function (y) {
-      cell = { x: x, y: y };
-      tile = self.grid.cellContent(cell);
-
-      if (tile) {
-        var positions = self.findFarthestPosition(cell, vector);
-        var next      = self.grid.cellContent(positions.next);
-
-        // Only one merger per row traversal?
-        if (next && next.value === tile.value && !next.mergedFrom) {
-          var merged = new Tile(positions.next, tile.value * 2);
-          merged.mergedFrom = [tile, next];
-
-          self.grid.insertTile(merged);
-          self.grid.removeTile(tile);
-
-          // Converge the two tiles' positions
-          tile.updatePosition(positions.next);
-
-          // Update the score
-          self.score += merged.value;
-
-          // The mighty 2048 tile
-          if (merged.value === 2048) self.won = true;
-        } else {
-          self.moveTile(tile, positions.farthest);
+    grid.cells.forEach(function (column) {
+      column.forEach(function (cell) {
+        if (cell) {
+          self.addTile(cell);
         }
-
-        if (!self.positionsEqual(cell, tile)) {
-          moved = true; // The tile moved from its original cell!
-        }
-      }
+      });
     });
-  });
 
-  if (moved) {
-    this.addRandomTile();
+    self.updateScore(metadata.score);
+    self.updateBestScore(metadata.bestScore);
 
-    if (!this.movesAvailable()) {
-      this.over = true; // Game over!
-    }
-
-    this.actuate();
-  }
-};
-
-// Get the vector representing the chosen direction
-GameManager.prototype.getVector = function (direction) {
-  // Vectors representing tile movement
-  var map = {
-    0: { x: 0,  y: -1 }, // up
-    1: { x: 1,  y: 0 },  // right
-    2: { x: 0,  y: 1 },  // down
-    3: { x: -1, y: 0 }   // left
-  };
-
-  return map[direction];
-};
-
-// Build a list of positions to traverse in the right order
-GameManager.prototype.buildTraversals = function (vector) {
-  var traversals = { x: [], y: [] };
-
-  for (var pos = 0; pos < this.size; pos++) {
-    traversals.x.push(pos);
-    traversals.y.push(pos);
-  }
-
-  // Always traverse from the farthest cell in the chosen direction
-  if (vector.x === 1) traversals.x = traversals.x.reverse();
-  if (vector.y === 1) traversals.y = traversals.y.reverse();
-
-  return traversals;
-};
-
-GameManager.prototype.findFarthestPosition = function (cell, vector) {
-  var previous;
-
-  // Progress towards the vector direction until an obstacle is found
-  do {
-    previous = cell;
-    cell     = { x: previous.x + vector.x, y: previous.y + vector.y };
-  } while (this.grid.withinBounds(cell) &&
-           this.grid.cellAvailable(cell));
-
-  return {
-    farthest: previous,
-    next: cell // Used to check if a merge is required
-  };
-};
-
-GameManager.prototype.movesAvailable = function () {
-  return this.grid.cellsAvailable() || this.tileMatchesAvailable();
-};
-
-// Check for available matches between tiles (more expensive check)
-GameManager.prototype.tileMatchesAvailable = function () {
-  var self = this;
-
-  var tile;
-
-  for (var x = 0; x < this.size; x++) {
-    for (var y = 0; y < this.size; y++) {
-      tile = this.grid.cellContent({ x: x, y: y });
-
-      if (tile) {
-        for (var direction = 0; direction < 4; direction++) {
-          var vector = self.getVector(direction);
-          var cell   = { x: x + vector.x, y: y + vector.y };
-
-          var other  = self.grid.cellContent(cell);
-
-          if (other && other.value === tile.value) {
-            return true; // These two tiles can be merged
-          }
-        }
+    if (metadata.terminated) {
+      if (metadata.over) {
+        self.message(false); // You lose
+      } else if (metadata.won) {
+        self.message(true); // You win!
       }
     }
+
+  });
+};
+
+// Continues the game (both restart and keep playing)
+HTMLActuator.prototype.continue = function () {
+  this.clearMessage();
+};
+
+HTMLActuator.prototype.clearContainer = function (container) {
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+};
+
+HTMLActuator.prototype.addTile = function (tile) {
+  var self = this;
+
+  var wrapper   = document.createElement("div");
+  var inner     = document.createElement("div");
+  var position  = tile.previousPosition || { x: tile.x, y: tile.y };
+  var positionClass = this.positionClass(position);
+
+  // We can't use classlist because it somehow glitches when replacing classes
+  var classes = ["tile", "tile-" + tile.value, positionClass];
+
+  if (tile.value > 2048) classes.push("tile-super");
+
+  this.applyClasses(wrapper, classes);
+
+  inner.classList.add("tile-inner");
+  inner.textContent = tile.value;
+
+  if (tile.previousPosition) {
+    // Make sure that the tile gets rendered in the previous position first
+    window.requestAnimationFrame(function () {
+      classes[2] = self.positionClass({ x: tile.x, y: tile.y });
+      self.applyClasses(wrapper, classes); // Update the position
+    });
+  } else if (tile.mergedFrom) {
+    classes.push("tile-merged");
+    this.applyClasses(wrapper, classes);
+
+    // Render the tiles that merged
+    tile.mergedFrom.forEach(function (merged) {
+      self.addTile(merged);
+    });
+  } else {
+    classes.push("tile-new");
+    this.applyClasses(wrapper, classes);
   }
 
-  return false;
+  // Add the inner part of the tile to the wrapper
+  wrapper.appendChild(inner);
+
+  // Put the tile on the board
+  this.tileContainer.appendChild(wrapper);
 };
 
-GameManager.prototype.positionsEqual = function (first, second) {
-  return first.x === second.x && first.y === second.y;
+HTMLActuator.prototype.applyClasses = function (element, classes) {
+  element.setAttribute("class", classes.join(" "));
 };
+
+HTMLActuator.prototype.normalizePosition = function (position) {
+  return { x: position.x + 1, y: position.y + 1 };
+};
+
+HTMLActuator.prototype.positionClass = function (position) {
+  position = this.normalizePosition(position);
+  return "tile-position-" + position.x + "-" + position.y;
+};
+
+HTMLActuator.prototype.updateScore = function (score) {
+  this.clearContainer(this.scoreContainer);
+  this.clearContainer(this.dogeSays);
+
+  var difference = score - this.score;
+  this.score = score;
+
+  this.scoreContainer.textContent = this.score;
+
+  if (this.score > 1000)
+      {
+          this.katkoContainerColor.setAttribute('style', 'background-color: #0c0!important');
+
+      }
+      else {
+          this.katkoContainerColor.setAttribute('style', 'background-color: #c00!important');
+      }
+
+
+   var snd;
+
+  if (difference > 0) {
+
+                var a =  Math.floor((Math.random() * 4) + 1);
+            if (a == 1) {
+                snd = new Audio("/open1.mp3");
+            }
+            if (a == 2) {
+                snd = new Audio("/open2.mp3");
+            }
+            if (a == 3) {
+                snd = new Audio("/open3.mp3");
+            }
+            if (a == 4) {
+                snd = new Audio("/open4.mp3");
+            }
+
+    var addition = document.createElement("div");
+    addition.classList.add("score-addition");
+    addition.textContent = "+" + difference;
+    this.scoreContainer.appendChild(addition);
+
+    var message = dogeSayings[Math.floor(Math.random() * dogeSayings.length)];
+    var messageElement = document.createElement("p");
+    messageElement.textContent = message
+    var left = 'left:' + Math.round(Math.random() * 20 + 30) + '%;'
+    var top = 'top:' + Math.round(Math.random() * 20 + 20) + '%;'
+
+    //var color = 'color: rgb(' + Math.round(Math.random() * 255) + ', ' + Math.round(Math.random() * 255) + ', ' + Math.round(Math.random() * 255) + ');'
+    var color = 'color: white; text-shadow:0px 0px 50px #000000;}';
+    var styleString = left + top + color
+    messageElement.setAttribute('style', styleString);
+    this.dogeSays.appendChild(messageElement);
+
+  } else
+      {
+            var a =  Math.floor((Math.random() * 3) + 1);
+            if (a == 1) {
+                snd = new Audio("/none1.mp3");
+            }
+            if (a == 2) {
+                snd = new Audio("/none2.mp3");
+            }
+            if (a == 3) {
+                snd = new Audio("/none3.mp3");
+            }
+
+
+      }
+
+  snd.play();
+};
+
+HTMLActuator.prototype.updateBestScore = function (bestScore) {
+  this.bestContainer.textContent = bestScore;
+};
+
+HTMLActuator.prototype.message = function (won) {
+  var type    = won ? "game-won" : "game-over";
+  var message = won ? "Kuolit radioaktiivisuuteen!" : "Game over!";
+
+  this.messageContainer.classList.add(type);
+  this.messageContainer.getElementsByTagName("p")[0].textContent = message;
+  this.buttonsContainer.setAttribute('style', 'display: none!important;');
+
+};
+
+HTMLActuator.prototype.clearMessage = function () {
+  // IE only takes one value to remove at a time.
+  this.messageContainer.classList.remove("game-won");
+  this.messageContainer.classList.remove("game-over");
+    this.buttonsContainer.setAttribute('style', '');
+};
+
+HTMLActuator.prototype.showInfo = function () {
+  if ( this.info.getAttribute('style') === "display:block;"){
+    this.info.setAttribute('style','display:none;');
+  } else {
+    this.info.setAttribute('style','display:block;'); }
+};
+
+HTMLActuator.prototype.hideInfo = function () {
+    this.info.setAttribute('style','display:none;');
+};
+
+HTMLActuator.prototype.goKatko = function () {
+    this.clearContainer(this.scoreContainer);
+    this.clearContainer(this.katkoViesti);
+    this.clearContainer(this.dogeSays);
+    this.scoreContainer.textContent = this.score-1000;
+
+    var addition = document.createElement("div");
+    addition.classList.add("score-addition");
+    addition.textContent = "-1000";
+    this.scoreContainer.appendChild(addition);
+
+    //var message = "KATKOLLE!";
+    var messageElement = document.createElement("img");
+    messageElement.setAttribute('src',"/img/katko.png");
+    //messageElement.textContent = message;
+    //var left = 'left: 37%;';
+    //var top = 'top: 10%;';
+
+    //var color = 'color: rgb(' + Math.round(Math.random() * 255) + ', ' + Math.round(Math.random() * 255) + ', ' + Math.round(Math.random() * 255) + ');'
+    //var color = 'font-weight: bold; color: black; text-shadow:0px 0px 50px #ff0000;}';
+    //var styleString = left + top;
+    //messageElement.setAttribute('style', styleString);
+    this.katkoViesti.appendChild(messageElement);
+    return true;
+}
