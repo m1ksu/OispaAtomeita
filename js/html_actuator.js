@@ -71,18 +71,18 @@ GameManager.prototype.setup = function () {
     snd[2] = new Audio("/none3.mp3");
 
   // Add the initial tiles
-  // this.addStartTiles();
-  this.grid.insertTile(new Tile({x:0,y:0}, 1024));
-this.grid.insertTile(new Tile({x:0,y:1}, 512));
-this.grid.insertTile(new Tile({x:0,y:2}, 256));
-this.grid.insertTile(new Tile({x:0,y:3}, 128));
-this.grid.insertTile(new Tile({x:1,y:3}, 64));
-this.grid.insertTile(new Tile({x:1,y:2}, 32));
-this.grid.insertTile(new Tile({x:1,y:1}, 16));
-this.grid.insertTile(new Tile({x:1,y:0}, 8));
-this.grid.insertTile(new Tile({x:2,y:0}, 4));
-this.grid.insertTile(new Tile({x:2,y:1}, 2));
-this.grid.insertTile(new Tile({x:2,y:2}, 2));
+  this.addStartTiles();
+  /*this.grid.insertTile(new Tile({x:0,y:0}, 1024));
+  this.grid.insertTile(new Tile({x:0,y:1}, 512));
+  this.grid.insertTile(new Tile({x:0,y:2}, 256));
+  this.grid.insertTile(new Tile({x:0,y:3}, 128));
+  this.grid.insertTile(new Tile({x:1,y:3}, 64));
+  this.grid.insertTile(new Tile({x:1,y:2}, 32));
+  this.grid.insertTile(new Tile({x:1,y:1}, 16));
+  this.grid.insertTile(new Tile({x:1,y:0}, 8));
+  this.grid.insertTile(new Tile({x:2,y:0}, 4));
+  this.grid.insertTile(new Tile({x:2,y:1}, 2));
+  this.grid.insertTile(new Tile({x:2,y:2}, 2));*/
   // Update the actuator
   this.actuate();
 };
